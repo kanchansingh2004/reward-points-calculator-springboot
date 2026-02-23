@@ -59,15 +59,15 @@
 
 ### Application Layers
 
-| Layer | Package | Responsibility | Key Classes |
-|-------|---------|---------------|-------------|
-| **Presentation** | `controller` | REST endpoints, request/response handling | `RewardsController` |
-| **Business Logic** | `service` | Core business rules, calculations | `RewardsService` |
+| Layer | Package | Responsibility | Key Classes                                  |
+|-------|---------|---------------|----------------------------------------------|
+| **Presentation** | `controller` | REST endpoints, request/response handling | `CustomerRewardsController`                  |
+| **Business Logic** | `service` | Core business rules, calculations | `RewardsService`                             |
 | **Data Access** | `repository` | Database operations | `CustomerRepository`, `TransactionRepository` |
-| **Domain Model** | `entity` | JPA entities | `Customer`, `Transaction` |
-| **Data Transfer** | `dto` | API contracts | `CustomerRewardsDto`, `TransactionDto` |
-| **Utilities** | `util` | Helper functions | `RewardsCalculator` |
-| **Error Handling** | `exception` | Exception management | `GlobalExceptionHandler` |
+| **Domain Model** | `entity` | JPA entities | `Customer`, `Transaction`                    |
+| **Data Transfer** | `dto` | API contracts | `CustomerRewardsDto`, `TransactionDto`       |
+| **Utilities** | `util` | Helper functions | `RewardsCalculator`                          |
+| **Error Handling** | `exception` | Exception management | `GlobalExceptionHandler`                     |
 
 ### Project Structure
 
@@ -76,7 +76,7 @@ customerrewardpoints/
 │
 ├── src/main/java/com/retail/rewards/
 │   ├── controller/
-│   │   └── RewardsController.java              # All REST endpoints
+│   │   └── CustomerRewardsController.java              # All REST endpoints
 │   ├── service/
 │   │   └── RewardsService.java                 # Business logic
 │   ├── repository/
@@ -97,8 +97,6 @@ customerrewardpoints/
 │   └── CustomerRewardPointsApplication.java    # Main application
 │
 ├── src/test/java/com/retail/rewards/
-│   ├── controller/
-│   │   └── RewardsControllerTest.java          # API integration tests
 │   ├── service/
 │   │   └── RewardsServiceTest.java             # Service unit tests
 │   └── util/
@@ -169,7 +167,7 @@ customerrewardpoints/
 ```json
 {
   "customerId": 1,
-  "customerName": "Kanchan",
+  "customerName": "Jessica",
   "monthlyPoints": {
     "2024-11": 115,
     "2024-12": 210,
@@ -206,7 +204,7 @@ curl -X GET http://localhost:8080/api/rewards/customer/1
 [
   {
     "customerId": 1,
-    "customerName": "Kanchan",
+    "customerName": "Jessica",
     "monthlyPoints": {
       "2024-12": 340
     },
@@ -214,7 +212,7 @@ curl -X GET http://localhost:8080/api/rewards/customer/1
   },
   {
     "customerId": 2,
-    "customerName": "Priya",
+    "customerName": "Alice",
     "monthlyPoints": {
       "2024-12": 450
     },
@@ -295,7 +293,6 @@ curl -X POST http://localhost:8080/api/transactions \
 |------------|------|------------|---------------|
 | `RewardsCalculatorTest` | Unit | 14 | Points calculation logic |
 | `RewardsServiceTest` | Unit | 6 | Business logic & service layer |
-| `RewardsControllerTest` | Integration | 8 | REST API endpoints |
 
 ### Test Scenarios Matrix
 
@@ -360,9 +357,9 @@ The application initializes with the following test data:
 
 | Customer ID | Customer Name | Transaction Count | Date Range |
 |------------|---------------|-------------------|------------|
-| 1 | Kanchan       | 5 | Last 3 months |
-| 2 | Priya         | 5 | Last 3 months |
-| 3 | Shivam        | 5 | Last 3 months |
+| 1 | Jessica       | 5 | Last 3 months |
+| 2 | Alice         | 5 | Last 3 months |
+| 3 | Willow        | 5 | Last 3 months |
 
 **Total Transactions:** 15 across 3 customers
 
@@ -390,16 +387,6 @@ The application initializes with the following test data:
 | **Exception Handling** | `@RestControllerAdvice` | Centralized error handling |
 | **Builder Pattern** | Lombok `@Data`, `@AllArgsConstructor` | Simplifies object creation |
 
-### Code Quality Standards
-
-| Aspect | Standard | Tool/Approach |
-|--------|----------|---------------|
-| **Naming** | camelCase for methods/variables, PascalCase for classes | Java conventions |
-| **Documentation** | JavaDoc on all public methods | `/** */` comments |
-| **Validation** | Bean Validation annotations | `@NotNull`, `@Positive` |
-| **Error Handling** | Global exception handler | `@RestControllerAdvice` |
-| **Testing** | Minimum 80% coverage | JUnit 5 + Mockito |
-
 ### Dynamic Date Calculation
 
 The application uses **dynamic date calculation** to avoid hardcoded months:
@@ -417,18 +404,6 @@ LocalDate startDate = endDate.minusMonths(3);  // 3 months ago
 
 ---
 
-## Troubleshooting
-
-| Issue | Possible Cause | Solution |
-|-------|---------------|----------|
-| Port 8080 already in use | Another application using port | Change port in `application.properties`: `server.port=8081` |
-| Tests failing | Outdated dependencies | Run `mvn clean install -U` |
-| PostgreSQL connection refused | PostgreSQL not running | Start PostgreSQL: `sudo service postgresql start` |
-| Database does not exist | Database not created | Run: `CREATE DATABASE rewards_db;` in psql |
-| Customer not found error | Invalid customer ID | Check customer exists in database |
-
----
-
 ## Notes
 
 - **No Hardcoded Months:** All date calculations are dynamic using `LocalDate.now()`
@@ -436,15 +411,5 @@ LocalDate startDate = endDate.minusMonths(3);  // 3 months ago
 - **Decimal Precision:** Uses `BigDecimal` for accurate monetary calculations
 - **Idempotent Operations:** GET requests are safe and idempotent
 - **RESTful Design:** Follows REST principles with proper HTTP methods and status codes
-
----
-
-## Author
-
-Developed as part of a Spring Boot coding assignment demonstrating:
-- RESTful API design
-- Clean architecture principles
-- Comprehensive testing strategies
-- Production-ready code quality
 
 ---

@@ -1,5 +1,6 @@
 package com.retail.rewards.service;
 
+import com.retail.rewards.config.RewardsConfig;
 import com.retail.rewards.dto.CustomerRewardsDto;
 import com.retail.rewards.dto.TransactionDto;
 import com.retail.rewards.entity.Customer;
@@ -9,98 +10,69 @@ import com.retail.rewards.repository.CustomerRepository;
 import com.retail.rewards.repository.TransactionRepository;
 import com.retail.rewards.util.RewardsCalculator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * Service class for calculating customer reward points and managing transactions.
- * Handles business logic for rewards calculation and transaction creation.
- */
 @Service
 @RequiredArgsConstructor
 public class RewardsService {
     
     private final TransactionRepository transactionRepository;
     private final CustomerRepository customerRepository;
-    private static final DateTimeFormatter MONTH_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM");
-    
-    /**
-     * Calculate rewards for a specific customer over the last 3 months.
-     * 
-     * @param customerId the customer ID
-     * @return customer rewards DTO with monthly breakdown and total
-     */
+    private final RewardsCalculator rewardsCalculator;
+    private final RewardsConfig config;
+
     public CustomerRewardsDto getRewardsForCustomer(Long customerId) {
-        // Verify customer exists
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer not found with ID: " + customerId));
         
-        // Calculate date range (last 3 months from today)
         LocalDate endDate = LocalDate.now();
-        LocalDate startDate = endDate.minusMonths(3);
+        LocalDate startDate = endDate.minusMonths(config.getCalculationMonths());
         
-        // Fetch transactions for the customer within date range
         List<Transaction> transactions = transactionRepository
                 .findByCustomerIdAndTransactionDateBetween(customerId, startDate, endDate);
         
-        // Calculate monthly points
         Map<String, Integer> monthlyPoints = calculateMonthlyPoints(transactions);
-        
-        // Calculate total points
         int totalPoints = monthlyPoints.values().stream().mapToInt(Integer::intValue).sum();
         
         return new CustomerRewardsDto(customerId, customer.getName(), monthlyPoints, totalPoints);
     }
     
-    /**
-     * Calculate rewards for all customers over the last 3 months.
-     * 
-     * @return list of customer rewards DTOs
-     */
-    public List<CustomerRewardsDto> getRewardsForAllCustomers() {
-        // Calculate date range (last 3 months from today)
+
+    // Calculates reward points for all customers with pagination support.
+    public Page<CustomerRewardsDto> getRewardsForAllCustomers(Pageable pageable) {
         LocalDate endDate = LocalDate.now();
-        LocalDate startDate = endDate.minusMonths(3);
+        LocalDate startDate = endDate.minusMonths(config.getCalculationMonths());
         
-        // Fetch all transactions within date range
-        List<Transaction> transactions = transactionRepository.findByTransactionDateBetween(startDate, endDate);
+        Page<Customer> customerPage = customerRepository.findAll(pageable);
         
-        // Group transactions by customer ID
-        Map<Long, List<Transaction>> transactionsByCustomer = transactions.stream()
-                .collect(Collectors.groupingBy(Transaction::getCustomerId));
+        List<CustomerRewardsDto> rewardsList = customerPage.getContent().stream()
+                .map(customer -> {
+                    List<Transaction> transactions = transactionRepository
+                            .findByCustomerIdAndTransactionDateBetween(customer.getId(), startDate, endDate);
+                    
+                    Map<String, Integer> monthlyPoints = calculateMonthlyPoints(transactions);
+                    int totalPoints = monthlyPoints.values().stream().mapToInt(Integer::intValue).sum();
+                    
+                    return new CustomerRewardsDto(customer.getId(), customer.getName(), monthlyPoints, totalPoints);
+                })
+                .collect(Collectors.toList());
         
-        // Calculate rewards for each customer
-        List<CustomerRewardsDto> rewardsList = new ArrayList<>();
-        for (Map.Entry<Long, List<Transaction>> entry : transactionsByCustomer.entrySet()) {
-            Long customerId = entry.getKey();
-            Customer customer = customerRepository.findById(customerId).orElse(null);
-            
-            if (customer != null) {
-                Map<String, Integer> monthlyPoints = calculateMonthlyPoints(entry.getValue());
-                int totalPoints = monthlyPoints.values().stream().mapToInt(Integer::intValue).sum();
-                rewardsList.add(new CustomerRewardsDto(customerId, customer.getName(), monthlyPoints, totalPoints));
-            }
-        }
-        
-        return rewardsList;
+        return new PageImpl<>(rewardsList, pageable, customerPage.getTotalElements());
     }
     
-    /**
-     * Create a new transaction for a customer.
-     * 
-     * @param transactionDto the transaction data
-     * @return the created transaction DTO
-     */
+    //Creates a new transaction for a customer.
     public TransactionDto createTransaction(TransactionDto transactionDto) {
-        // Verify customer exists
         if (!customerRepository.existsById(transactionDto.getCustomerId())) {
             throw new ResourceNotFoundException("Customer not found with ID: " + transactionDto.getCustomerId());
         }
         
-        // Create and save transaction
         Transaction transaction = new Transaction();
         transaction.setCustomerId(transactionDto.getCustomerId());
         transaction.setAmount(transactionDto.getAmount());
@@ -108,7 +80,6 @@ public class RewardsService {
         
         Transaction savedTransaction = transactionRepository.save(transaction);
         
-        // Convert to DTO and return
         return new TransactionDto(
                 savedTransaction.getId(),
                 savedTransaction.getCustomerId(),
@@ -117,19 +88,14 @@ public class RewardsService {
         );
     }
     
-    /**
-     * Calculate monthly points from a list of transactions.
-     * Groups transactions by month and calculates points for each month.
-     * 
-     * @param transactions list of transactions
-     * @return map of month (YYYY-MM) to points
-     */
+    //Calculates monthly reward points from a list of transactions.
     private Map<String, Integer> calculateMonthlyPoints(List<Transaction> transactions) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern(config.getMonthFormat());
         return transactions.stream()
                 .collect(Collectors.groupingBy(
-                        transaction -> transaction.getTransactionDate().format(MONTH_FORMATTER),
+                        transaction -> transaction.getTransactionDate().format(formatter),
                         TreeMap::new,
-                        Collectors.summingInt(transaction -> RewardsCalculator.calculatePoints(transaction.getAmount()))
+                        Collectors.summingInt(transaction -> rewardsCalculator.calculatePoints(transaction.getAmount()))
                 ));
     }
 }

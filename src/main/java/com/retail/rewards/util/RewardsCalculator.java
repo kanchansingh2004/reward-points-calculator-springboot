@@ -1,45 +1,37 @@
 package com.retail.rewards.util;
 
+import com.retail.rewards.config.RewardsConfig;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 
-/**
- * Utility class for calculating reward points based on transaction amounts.
- * 
- * Calculation rules:
- * - 2 points for every dollar spent over $100
- * - 1 point for every dollar spent between $50 and $100
- * - 0 points for amounts $50 or below
- */
+@Component
+@RequiredArgsConstructor
 public class RewardsCalculator {
     
-    private static final BigDecimal TIER_ONE_THRESHOLD = new BigDecimal("50");
-    private static final BigDecimal TIER_TWO_THRESHOLD = new BigDecimal("100");
-    private static final int TIER_ONE_MULTIPLIER = 1;
-    private static final int TIER_TWO_MULTIPLIER = 2;
+    private final RewardsConfig config;
     
     /**
-     * Calculate reward points for a given transaction amount.
+     * Calculates reward points for a given transaction amount.
      * 
      * @param amount the transaction amount
-     * @return the calculated reward points
+     * @return calculated reward points, or 0 if amount is null or non-positive
      */
-    public static int calculatePoints(BigDecimal amount) {
+    public int calculatePoints(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             return 0;
         }
         
         int points = 0;
         
-        // Calculate points for amount over $100 (2 points per dollar)
-        if (amount.compareTo(TIER_TWO_THRESHOLD) > 0) {
-            BigDecimal amountOverHundred = amount.subtract(TIER_TWO_THRESHOLD);
-            points += amountOverHundred.intValue() * TIER_TWO_MULTIPLIER;
+        if (amount.compareTo(config.getTierTwoThreshold()) > 0) {
+            BigDecimal amountOverHundred = amount.subtract(config.getTierTwoThreshold());
+            points += amountOverHundred.intValue() * config.getTierTwoMultiplier();
         }
         
-        // Calculate points for amount between $50 and $100 (1 point per dollar)
-        if (amount.compareTo(TIER_ONE_THRESHOLD) > 0) {
-            BigDecimal amountForTierOne = amount.min(TIER_TWO_THRESHOLD).subtract(TIER_ONE_THRESHOLD);
-            points += amountForTierOne.intValue() * TIER_ONE_MULTIPLIER;
+        if (amount.compareTo(config.getTierOneThreshold()) > 0) {
+            BigDecimal amountForTierOne = amount.min(config.getTierTwoThreshold()).subtract(config.getTierOneThreshold());
+            points += amountForTierOne.intValue() * config.getTierOneMultiplier();
         }
         
         return points;

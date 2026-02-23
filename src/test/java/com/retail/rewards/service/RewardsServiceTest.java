@@ -1,5 +1,6 @@
 package com.retail.rewards.service;
 
+import com.retail.rewards.config.RewardsConfig;
 import com.retail.rewards.dto.CustomerRewardsDto;
 import com.retail.rewards.dto.TransactionDto;
 import com.retail.rewards.entity.Customer;
@@ -7,11 +8,17 @@ import com.retail.rewards.entity.Transaction;
 import com.retail.rewards.exception.ResourceNotFoundException;
 import com.retail.rewards.repository.CustomerRepository;
 import com.retail.rewards.repository.TransactionRepository;
+import com.retail.rewards.util.RewardsCalculator;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -22,10 +29,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
-/**
- * Unit tests for RewardsService.
- * Tests business logic for reward calculations and transaction management.
- */
 @ExtendWith(MockitoExtension.class)
 class RewardsServiceTest {
     
@@ -35,12 +38,21 @@ class RewardsServiceTest {
     @Mock
     private CustomerRepository customerRepository;
     
+    @Mock
+    private RewardsCalculator rewardsCalculator;
+    
+    @Mock
+    private RewardsConfig config;
+    
     @InjectMocks
     private RewardsService rewardsService;
     
-    /**
-     * Test getting rewards for a valid customer with transactions.
-     */
+    @BeforeEach
+    void setUp() {
+        when(config.getCalculationMonths()).thenReturn(3);
+        when(config.getMonthFormat()).thenReturn("yyyy-MM");
+    }
+    
     @Test
     void testGetRewardsForCustomer_Success() {
         Long customerId = 1L;
@@ -55,19 +67,17 @@ class RewardsServiceTest {
         when(customerRepository.findById(customerId)).thenReturn(Optional.of(customer));
         when(transactionRepository.findByCustomerIdAndTransactionDateBetween(eq(customerId), any(), any()))
             .thenReturn(transactions);
+        when(rewardsCalculator.calculatePoints(new BigDecimal("120.00"))).thenReturn(90);
+        when(rewardsCalculator.calculatePoints(new BigDecimal("75.00"))).thenReturn(25);
         
         CustomerRewardsDto result = rewardsService.getRewardsForCustomer(customerId);
         
         assertNotNull(result);
         assertEquals(customerId, result.getCustomerId());
         assertEquals("Test Customer", result.getCustomerName());
-        assertEquals(115, result.getTotalPoints()); // 90 + 25
+        assertEquals(115, result.getTotalPoints());
     }
     
-    /**
-     * Test getting rewards for non-existent customer.
-     * Should throw ResourceNotFoundException.
-     */
     @Test
     void testGetRewardsForCustomer_NotFound() {
         Long customerId = 999L;
@@ -78,9 +88,6 @@ class RewardsServiceTest {
         });
     }
     
-    /**
-     * Test getting rewards for customer with no transactions.
-     */
     @Test
     void testGetRewardsForCustomer_NoTransactions() {
         Long customerId = 1L;
@@ -97,33 +104,37 @@ class RewardsServiceTest {
         assertTrue(result.getMonthlyPoints().isEmpty());
     }
     
-    /**
-     * Test getting rewards for all customers.
-     */
     @Test
     void testGetRewardsForAllCustomers() {
         LocalDate today = LocalDate.now();
         Customer customer1 = new Customer(1L, "Customer 1");
         Customer customer2 = new Customer(2L, "Customer 2");
         
-        List<Transaction> transactions = Arrays.asList(
-            new Transaction(1L, 1L, new BigDecimal("120.00"), today.minusDays(10)),
+        List<Customer> customers = Arrays.asList(customer1, customer2);
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Customer> customerPage = new PageImpl<>(customers, pageable, 2);
+        
+        List<Transaction> transactions1 = Arrays.asList(
+            new Transaction(1L, 1L, new BigDecimal("120.00"), today.minusDays(10))
+        );
+        List<Transaction> transactions2 = Arrays.asList(
             new Transaction(2L, 2L, new BigDecimal("150.00"), today.minusDays(15))
         );
         
-        when(transactionRepository.findByTransactionDateBetween(any(), any())).thenReturn(transactions);
-        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer1));
-        when(customerRepository.findById(2L)).thenReturn(Optional.of(customer2));
+        when(customerRepository.findAll(pageable)).thenReturn(customerPage);
+        when(transactionRepository.findByCustomerIdAndTransactionDateBetween(eq(1L), any(), any()))
+            .thenReturn(transactions1);
+        when(transactionRepository.findByCustomerIdAndTransactionDateBetween(eq(2L), any(), any()))
+            .thenReturn(transactions2);
+        when(rewardsCalculator.calculatePoints(any())).thenReturn(90, 150);
         
-        List<CustomerRewardsDto> results = rewardsService.getRewardsForAllCustomers();
+        Page<CustomerRewardsDto> results = rewardsService.getRewardsForAllCustomers(pageable);
         
         assertNotNull(results);
-        assertEquals(2, results.size());
+        assertEquals(2, results.getContent().size());
+        assertEquals(2, results.getTotalElements());
     }
     
-    /**
-     * Test creating a transaction successfully.
-     */
     @Test
     void testCreateTransaction_Success() {
         Long customerId = 1L;
@@ -141,10 +152,6 @@ class RewardsServiceTest {
         assertEquals(new BigDecimal("120.00"), result.getAmount());
     }
     
-    /**
-     * Test creating a transaction for non-existent customer.
-     * Should throw ResourceNotFoundException.
-     */
     @Test
     void testCreateTransaction_CustomerNotFound() {
         Long customerId = 999L;

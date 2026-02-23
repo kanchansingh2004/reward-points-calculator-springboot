@@ -10,19 +10,12 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Global exception handler for the application.
- * Provides consistent error responses across all controllers.
- */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     
     /**
-     * Handle ResourceNotFoundException.
-     * 
-     * @param ex the exception
-     * @return error response with 404 status
-     */
+     * Handles ResourceNotFoundException.
+     **/
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleResourceNotFound(ResourceNotFoundException ex) {
         Map<String, Object> error = new HashMap<>();
@@ -34,11 +27,8 @@ public class GlobalExceptionHandler {
     }
     
     /**
-     * Handle validation errors.
-     * 
-     * @param ex the exception
-     * @return error response with 400 status
-     */
+     * Handles validation errors from request body.
+     **/
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationErrors(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
@@ -57,11 +47,8 @@ public class GlobalExceptionHandler {
     }
     
     /**
-     * Handle all other exceptions.
-     * 
-     * @param ex the exception
-     * @return error response with 500 status
-     */
+     * Handles all other uncaught exceptions.
+     **/
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
         Map<String, Object> error = new HashMap<>();
