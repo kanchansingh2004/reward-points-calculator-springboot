@@ -16,7 +16,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -43,7 +47,7 @@ public class RewardsService {
         
         return new CustomerRewardsDto(customerId, customer.getName(), monthlyPoints, totalPoints);
     }
-    
+
 
     // Calculates reward points for all customers with pagination support.
     public Page<CustomerRewardsDto> getRewardsForAllCustomers(Pageable pageable) {

@@ -12,7 +12,7 @@
 - [API Documentation](#api-documentation)
 - [Testing Strategy](#testing-strategy)
 - [Database Schema](#database-schema)
-- [Development Guide](#development-guide)
+- [Configuration](#configuration)
 
 ---
 
@@ -49,25 +49,25 @@
 | Language | Java | 17 | Core programming language |
 | Framework | Spring Boot | 3.2.0 | Application framework |
 | ORM | Spring Data JPA | 3.2.0 | Database abstraction |
-| Database (Dev) | PostgreSQL | 14+ | Development database |
-| Database (Prod) | PostgreSQL | 14+ | Production database |
-| Database (Test) | H2 | In-memory | Testing database |
+| Database | PostgreSQL | 14+ | Database (Dev/Test/Prod) |
 | Build Tool | Maven | 3.6+ | Dependency management |
 | Testing | JUnit 5 + Mockito | 5.x | Unit & integration testing |
 | Code Reduction | Lombok | Latest | Boilerplate reduction |
 | Validation | Bean Validation | 3.0 | Input validation |
+| API Documentation | SpringDoc OpenAPI | 2.2.0 | Swagger UI & API docs |
 
 ### Application Layers
 
-| Layer | Package | Responsibility | Key Classes                                  |
-|-------|---------|---------------|----------------------------------------------|
-| **Presentation** | `controller` | REST endpoints, request/response handling | `CustomerRewardsController`                  |
-| **Business Logic** | `service` | Core business rules, calculations | `RewardsService`                             |
+| Layer | Package | Responsibility | Key Classes |
+|-------|---------|---------------|-------------|
+| **Presentation** | `controller` | REST endpoints | `CustomerRewardsController`, `TransactionController` |
+| **Business Logic** | `service` | Core business rules | `RewardsService` |
 | **Data Access** | `repository` | Database operations | `CustomerRepository`, `TransactionRepository` |
-| **Domain Model** | `entity` | JPA entities | `Customer`, `Transaction`                    |
-| **Data Transfer** | `dto` | API contracts | `CustomerRewardsDto`, `TransactionDto`       |
-| **Utilities** | `util` | Helper functions | `RewardsCalculator`                          |
-| **Error Handling** | `exception` | Exception management | `GlobalExceptionHandler`                     |
+| **Domain Model** | `entity` | JPA entities | `Customer`, `Transaction` |
+| **Data Transfer** | `dto` | API contracts | `CustomerRewardsDto`, `TransactionDto` |
+| **Configuration** | `config` | Application config | `RewardsConfig`, `SwaggerConfig` |
+| **Utilities** | `util` | Helper functions | `RewardsCalculator` |
+| **Error Handling** | `exception` | Exception management | `GlobalExceptionHandler` |
 
 ### Project Structure
 
@@ -75,8 +75,12 @@
 customerrewardpoints/
 │
 ├── src/main/java/com/retail/rewards/
+│   ├── config/
+│   │   ├── RewardsConfig.java                  # Configuration properties
+│   │   └── SwaggerConfig.java                  # Swagger/OpenAPI configuration
 │   ├── controller/
-│   │   └── CustomerRewardsController.java              # All REST endpoints
+│   │   ├── CustomerRewardsController.java      # Rewards endpoints
+│   │   └── TransactionController.java          # Transaction endpoints
 │   ├── service/
 │   │   └── RewardsService.java                 # Business logic
 │   ├── repository/
@@ -93,10 +97,16 @@ customerrewardpoints/
 │   ├── exception/
 │   │   ├── GlobalExceptionHandler.java         # Centralized error handling
 │   │   └── ResourceNotFoundException.java      # Custom exception
-│   ├── DataInitializer.java                    # Sample data loader
 │   └── CustomerRewardPointsApplication.java    # Main application
 │
+├── src/main/resources/
+│   ├── application.properties                  # Application configuration
+│   └── data.sql                                # Sample data initialization
+│
 ├── src/test/java/com/retail/rewards/
+│   ├── controller/
+│   │   ├── CustomerRewardsControllerTest.java  # Rewards API tests
+│   │   └── TransactionControllerTest.java      # Transaction API tests
 │   ├── service/
 │   │   └── RewardsServiceTest.java             # Service unit tests
 │   └── util/
@@ -126,8 +136,8 @@ customerrewardpoints/
 |------|---------|-------------|
 | 1 | `git clone <repository-url>` | Clone the repository |
 | 2 | `cd customerrewardpoints` | Navigate to project directory |
-| 3 | Create PostgreSQL database: `CREATE DATABASE rewards_db;` | Setup database |
-| 4 | Update `application.properties` with DB credentials | Configure connection |
+| 3 | Create PostgreSQL databases: `CREATE DATABASE rewards_db;` and `CREATE DATABASE rewards_test_db;` | Setup databases |
+| 4 | Update `application.properties` with DB credentials if needed | Configure connection |
 | 5 | `mvn clean install` | Build and run tests |
 | 6 | `mvn spring-boot:run` | Start the application |
 
@@ -136,7 +146,9 @@ customerrewardpoints/
 | Service | URL | Credentials |
 |---------|-----|-------------|
 | REST API | http://localhost:8080 | N/A |
-| PostgreSQL | localhost:5432/rewards_db | Username: `postgres`, Password: `postgres` |
+| Swagger UI | http://localhost:8080/swagger-ui.html | N/A |
+| PostgreSQL (Dev) | localhost:5432/rewards_db | Username: `postgres`, Password: `postgres` |
+| PostgreSQL (Test) | localhost:5432/rewards_test_db | Username: `postgres`, Password: `postgres` |
 
 ---
 
@@ -147,10 +159,10 @@ customerrewardpoints/
 | Method | Endpoint | Description | Request Body | Response |
 |--------|----------|-------------|--------------|----------|
 | GET | `/api/rewards/customer/{id}` | Get rewards for specific customer | None | `CustomerRewardsDto` |
-| GET | `/api/rewards/customers` | Get rewards for all customers | None | `List<CustomerRewardsDto>` |
+| GET | `/api/rewards/customers` | Get rewards for all customers (paginated) | None | `Page<CustomerRewardsDto>` |
 | POST | `/api/transactions` | Create new transaction | `TransactionDto` | `TransactionDto` |
 
-### 1️ Get Customer Rewards
+### 1️⃣ Get Customer Rewards
 
 **Endpoint:** `GET /api/rewards/customer/{customerId}`
 
@@ -177,17 +189,10 @@ customerrewardpoints/
 }
 ```
 
-**Error Responses:**
-
-| Status Code | Scenario | Response Example |
-|------------|----------|------------------|
-| 404 | Customer not found | `{"status": 404, "error": "Not Found", "message": "Customer not found with ID: 999"}` |
-| 500 | Server error | `{"status": 500, "error": "Internal Server Error"}` |
-
 **cURL Example:**
 
 ```bash
-curl -X GET http://localhost:8080/api/rewards/customer/1
+curl http://localhost:8080/api/rewards/customer/1
 ```
 
 ---
@@ -196,35 +201,58 @@ curl -X GET http://localhost:8080/api/rewards/customer/1
 
 **Endpoint:** `GET /api/rewards/customers`
 
-**Description:** Retrieves reward points for all customers in the system.
+**Description:** Retrieves reward points for all customers with pagination support.
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| page | Integer | No | 0 | Page number (0-indexed) |
+| size | Integer | No | 20 | Number of items per page |
+| sort | String | No | - | Sort field and direction (e.g., `customerName,asc`) |
 
 **Success Response (200 OK):**
 
 ```json
-[
-  {
-    "customerId": 1,
-    "customerName": "Jessica",
-    "monthlyPoints": {
-      "2024-12": 340
+{
+  "content": [
+    {
+      "customerId": 1,
+      "customerName": "Jessica",
+      "monthlyPoints": {
+        "2024-12": 340
+      },
+      "totalPoints": 340
     },
-    "totalPoints": 340
+    {
+      "customerId": 2,
+      "customerName": "Alice",
+      "monthlyPoints": {
+        "2024-12": 450
+      },
+      "totalPoints": 450
+    }
+  ],
+  "pageable": {
+    "pageNumber": 0,
+    "pageSize": 20
   },
-  {
-    "customerId": 2,
-    "customerName": "Alice",
-    "monthlyPoints": {
-      "2024-12": 450
-    },
-    "totalPoints": 450
-  }
-]
+  "totalElements": 3,
+  "totalPages": 1
+}
 ```
 
-**cURL Example:**
+**cURL Examples:**
 
 ```bash
-curl -X GET http://localhost:8080/api/rewards/customers
+# Default pagination
+curl http://localhost:8080/api/rewards/customers
+
+# First page with 10 items
+curl "http://localhost:8080/api/rewards/customers?page=0&size=10"
+
+# Sorted by customer name
+curl "http://localhost:8080/api/rewards/customers?sort=customerName,asc"
 ```
 
 ---
@@ -291,24 +319,11 @@ curl -X POST http://localhost:8080/api/transactions \
 
 | Test Class | Type | Test Count | Coverage Area |
 |------------|------|------------|---------------|
+| `CustomerRewardsControllerTest` | Integration | 5 | Rewards API endpoints |
+| `TransactionControllerTest` | Integration | 4 | Transaction API endpoints |
+| `RewardsServiceTest` | Unit | 7 | Business logic & service layer |
 | `RewardsCalculatorTest` | Unit | 14 | Points calculation logic |
-| `RewardsServiceTest` | Unit | 6 | Business logic & service layer |
-
-### Test Scenarios Matrix
-
-| Category | Scenario | Expected Outcome | Test Method |
-|----------|----------|------------------|-------------|
-| **Positive** | Amount = $120 | 90 points | `testCalculatePoints` |
-| **Positive** | Amount = $100 | 50 points | `testCalculatePoints` |
-| **Positive** | Amount = $75 | 25 points | `testCalculatePoints` |
-| **Boundary** | Amount = $50.00 | 0 points | `testCalculatePoints` |
-| **Boundary** | Amount = $50.01 | 0 points | `testCalculatePoints` |
-| **Boundary** | Amount = $100.01 | 50 points | `testCalculatePoints` |
-| **Negative** | Amount = null | 0 points | `testCalculatePointsWithNullAmount` |
-| **Negative** | Amount = 0 | 0 points | `testCalculatePointsWithZeroAmount` |
-| **Negative** | Amount < 0 | 0 points | `testCalculatePointsWithNegativeAmount` |
-| **Exception** | Customer not found | 404 error | `testGetCustomerRewards_NotFound` |
-| **Exception** | Invalid transaction | 400 error | `testCreateTransaction_ValidationError` |
+| **TOTAL** | - | **30** | **Complete Coverage** |
 
 ### Running Tests
 
@@ -335,25 +350,9 @@ curl -X POST http://localhost:8080/api/transactions \
                             └──────────────────────┘
 ```
 
-### Table: customers
-
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | Unique customer identifier |
-| name | VARCHAR(255) | NOT NULL | Customer name |
-
-### Table: transactions
-
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | Unique transaction identifier |
-| customer_id | BIGINT | NOT NULL, FOREIGN KEY | Reference to customer |
-| amount | DECIMAL(10,2) | NOT NULL | Transaction amount |
-| transaction_date | DATE | NOT NULL | Date of transaction |
-
 ### Sample Data
 
-The application initializes with the following test data:
+The application initializes with sample data via `data.sql`:
 
 | Customer ID | Customer Name | Transaction Count | Date Range |
 |------------|---------------|-------------------|------------|
@@ -377,39 +376,24 @@ The application initializes with the following test data:
 | `spring.jpa.hibernate.ddl-auto` | `update` | Auto-update schema |
 | `spring.jpa.show-sql` | `true` | Log SQL queries |
 
-### Key Design Patterns
-
-| Pattern | Implementation | Benefit |
-|---------|---------------|---------|
-| **DTO Pattern** | `CustomerRewardsDto`, `TransactionDto` | Decouples API from domain model |
-| **Repository Pattern** | Spring Data JPA repositories | Abstracts data access |
-| **Service Layer** | `RewardsService` | Encapsulates business logic |
-| **Exception Handling** | `@RestControllerAdvice` | Centralized error handling |
-| **Builder Pattern** | Lombok `@Data`, `@AllArgsConstructor` | Simplifies object creation |
-
-### Dynamic Date Calculation
-
-The application uses **dynamic date calculation** to avoid hardcoded months:
-
-```java
-LocalDate endDate = LocalDate.now();           // Current date
-LocalDate startDate = endDate.minusMonths(3);  // 3 months ago
+# Testing
+spring.datasource.url=jdbc:postgresql://localhost:5432/rewards_test_db
 ```
 
-| Feature | Implementation | Benefit |
-|---------|---------------|---------|
-| Rolling window | `LocalDate.now().minusMonths(3)` | Always calculates last 3 months |
-| Month formatting | `DateTimeFormatter.ofPattern("yyyy-MM")` | Consistent month keys |
-| Timezone handling | Uses system default | Adapts to deployment environment |
+### Swagger/OpenAPI Configuration
 
----
+API documentation is available via Swagger UI:
 
-## Notes
+| Service | URL | Description |
+|---------|-----|-------------|
+| Swagger UI | http://localhost:8080/swagger-ui.html | Interactive API documentation |
+| OpenAPI JSON | http://localhost:8080/api-docs | OpenAPI 3.0 specification |
 
-- **No Hardcoded Months:** All date calculations are dynamic using `LocalDate.now()`
-- **Timezone Aware:** Application uses system timezone for date calculations
-- **Decimal Precision:** Uses `BigDecimal` for accurate monetary calculations
-- **Idempotent Operations:** GET requests are safe and idempotent
-- **RESTful Design:** Follows REST principles with proper HTTP methods and status codes
+**Configuration:**
+```properties
+springdoc.api-docs.path=/api-docs
+springdoc.swagger-ui.path=/swagger-ui.html
+springdoc.swagger-ui.operationsSorter=method
+```
 
 ---

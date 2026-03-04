@@ -6,7 +6,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import java.math.BigDecimal;
-import static org.junit.jupiter.api.Assertions.*;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class RewardsCalculatorTest {
     
@@ -15,6 +16,10 @@ class RewardsCalculatorTest {
     @BeforeEach
     void setUp() {
         RewardsConfig config = new RewardsConfig();
+        config.setTierOneThreshold(50);
+        config.setTierTwoThreshold(100);
+        config.setTierOneMultiplier(1);
+        config.setTierTwoMultiplier(2);
         calculator = new RewardsCalculator(config);
     }
     

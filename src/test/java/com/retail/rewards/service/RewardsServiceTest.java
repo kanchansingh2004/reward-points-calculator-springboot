@@ -24,7 +24,11 @@ import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import static org.junit.jupiter.api.Assertions.*;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -49,14 +53,16 @@ class RewardsServiceTest {
     
     @BeforeEach
     void setUp() {
-        when(config.getCalculationMonths()).thenReturn(3);
-        when(config.getMonthFormat()).thenReturn("yyyy-MM");
+        // Config mocks are set per test as needed
     }
     
     @Test
     void testGetRewardsForCustomer_Success() {
         Long customerId = 1L;
         Customer customer = new Customer(customerId, "Test Customer");
+        
+        when(config.getCalculationMonths()).thenReturn(3);
+        when(config.getMonthFormat()).thenReturn("yyyy-MM");
         
         LocalDate today = LocalDate.now();
         List<Transaction> transactions = Arrays.asList(
@@ -93,6 +99,9 @@ class RewardsServiceTest {
         Long customerId = 1L;
         Customer customer = new Customer(customerId, "Test Customer");
         
+        when(config.getCalculationMonths()).thenReturn(3);
+        when(config.getMonthFormat()).thenReturn("yyyy-MM");
+        
         when(customerRepository.findById(customerId)).thenReturn(Optional.of(customer));
         when(transactionRepository.findByCustomerIdAndTransactionDateBetween(eq(customerId), any(), any()))
             .thenReturn(Arrays.asList());
@@ -106,10 +115,13 @@ class RewardsServiceTest {
     
     @Test
     void testGetRewardsForAllCustomers() {
+        when(config.getCalculationMonths()).thenReturn(3);
+        when(config.getMonthFormat()).thenReturn("yyyy-MM");
+        
         LocalDate today = LocalDate.now();
         Customer customer1 = new Customer(1L, "Customer 1");
         Customer customer2 = new Customer(2L, "Customer 2");
-        
+
         List<Customer> customers = Arrays.asList(customer1, customer2);
         Pageable pageable = PageRequest.of(0, 10);
         Page<Customer> customerPage = new PageImpl<>(customers, pageable, 2);

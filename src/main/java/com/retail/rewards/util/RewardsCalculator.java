@@ -24,13 +24,13 @@ public class RewardsCalculator {
         
         int points = 0;
         
-        if (amount.compareTo(config.getTierTwoThreshold()) > 0) {
-            BigDecimal amountOverHundred = amount.subtract(config.getTierTwoThreshold());
+        if (amount.compareTo(BigDecimal.valueOf(config.getTierTwoThreshold())) > 0) {
+            BigDecimal amountOverHundred = amount.subtract(BigDecimal.valueOf(config.getTierTwoThreshold()));
             points += amountOverHundred.intValue() * config.getTierTwoMultiplier();
         }
         
-        if (amount.compareTo(config.getTierOneThreshold()) > 0) {
-            BigDecimal amountForTierOne = amount.min(config.getTierTwoThreshold()).subtract(config.getTierOneThreshold());
+        if (amount.compareTo(BigDecimal.valueOf(config.getTierOneThreshold())) > 0) {
+            BigDecimal amountForTierOne = amount.min(BigDecimal.valueOf(config.getTierTwoThreshold())).subtract(BigDecimal.valueOf(config.getTierOneThreshold()));
             points += amountForTierOne.intValue() * config.getTierOneMultiplier();
         }
         
